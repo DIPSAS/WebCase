@@ -18,7 +18,6 @@ export default function Page() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
-  // Fetch patients on mount - mixing concerns by doing this directly in component
   useEffect(() => {
     fetchPatients();
   }, []);
@@ -36,7 +35,6 @@ export default function Page() {
     }
   };
 
-  // Fetch patient details when selected - no abstraction
   const handleSelectPatient = async (patientId: string) => {
     try {
       const [patientRes, apptRes, rxRes, vitalsRes] = await Promise.all([
@@ -60,14 +58,12 @@ export default function Page() {
     }
   };
 
-  // Add new patient - mixing validation, API calls, and state updates
   const addPatient = async () => {
     if (!newPatientName || !newPatientEmail) {
       alert("Name and email required!");
       return;
     }
 
-    // Poor validation
     if (newPatientEmail.indexOf("@") === -1) {
       alert("Invalid email");
       return;
@@ -133,7 +129,6 @@ export default function Page() {
     }
   };
 
-  // Cancel appointment - inline logic
   const cancelAppointment = async (apptId: string) => {
     try {
       const res = await fetch(
@@ -151,7 +146,6 @@ export default function Page() {
     }
   };
 
-  // Filter patients - doing this in render instead of useMemo
   const filteredPatients = patients.filter(
     (p) =>
       p.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -159,7 +153,6 @@ export default function Page() {
       p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Render everything in one massive component
   return (
     <div className="container" style={{ padding: "20px", maxWidth: "1400px" }}>
       <h1 className="title">

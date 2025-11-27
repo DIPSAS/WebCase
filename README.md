@@ -1,6 +1,11 @@
+## Prerequisites
+
+- Node.js (version 24 or higher)
+- pnpm (version 10 or higher)
+
 ## Oppgave
 
-Undersøk API'et og frontend-applikasjonene i dette monorepoet. Gjør nødvendige endringer for å fjerne legacy-kode og forbedre brukeropplevelsen i admin-applikasjonen og pasientportalen.
+Undersøk API'et og frontend-applikasjonene i dette monorepoet. Gjør nødvendige endringer for å fjerne legacy-kode og forbedre brukeropplevelsen i admin-applikasjonen og arena-web applikasjonen.
 
 Det viktige er ikke nødvendigvis hva du ender opp med, men hvordan du tenker underveis og hvilke valg du tar. Dokumenter gjerne underveis i koden eller i en egen fil.
 

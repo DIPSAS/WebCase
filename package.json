@@ -10,12 +10,13 @@
     "test": "turbo run test",
     "check-types": "turbo run check-types"
   },
+  "packageManager": "pnpm@10.17.0",
   "devDependencies": {
     "prettier": "^3.6.0",
     "turbo": "^2.6.1"
   },
-  "packageManager": "pnpm@8.15.6",
   "engines": {
-    "node": ">=18"
+    "node": ">=24",
+    "pnpm": ">=10"
   }
 }

@@ -1,5 +1,4 @@
 import "./styles.css";
-import { Link } from "@repo/ui/link";
 
 function App() {
   return (
@@ -7,9 +6,9 @@ function App() {
       <h1 className="title">Admin App</h1>
       <p className="description">
         This is the admin application for Arena Web. Go to{" "}
-        <Link href="http://localhost:3002" className="link">
+        <a href="http://localhost:3002" className="link">
           Arena Web
-        </Link>
+        </a>{" "}
         to see the main application.
       </p>
     </div>
