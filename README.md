@@ -1,8 +1,21 @@
---- Hva tenker du om håndtering av pakkeversjoner i dette monorepoet?
-    --- Dette monorepoet bruker både react 18 og react 19. Har dette noe å si? 
+## Oppgave
 
----
+Undersøk API'et og frontend-applikasjonene i dette monorepoet. Gjør nødvendige endringer for å fjerne legacy-kode og forbedre brukeropplevelsen i admin-applikasjonen og pasientportalen.
 
-Alle pakker i dette monorepoet må bygges. Hva tenker du er pros og cons med dette og skalerer dette bra etterhvert som mengden pakker øker?
+Det viktige er ikke nødvendigvis hva du ender opp med, men hvordan du tenker underveis og hvilke valg du tar. Dokumenter gjerne underveis i koden eller i en egen fil.
 
---- Hvordan tenker du om deling av konfigurasjon (f.eks. eslint, prettier, babel, webpack) på tvers av pakkene i monorepoet?
+### Diskusjonspunkter
+
+#### Pakkeversjoner
+
+- Hvordan håndteres pakkeversjoner i dette monorepoet?
+- Har bruken av både React 18 og React 19 betydning for systemet?
+
+#### Bygging av pakker
+
+- Hva er fordeler og ulemper ved at alle pakker må bygges?
+- Hvordan skalerer denne tilnærmingen når antall pakker øker?
+
+#### Deling av konfigurasjon
+
+- Hvordan bør ESLint, Prettier, Babel og Webpack-konfigurasjoner deles på tvers av pakkene?
