@@ -1,24 +1,16 @@
 import "./styles.css";
-import { CounterButton } from "@repo/ui/counter-button";
 import { Link } from "@repo/ui/link";
 
 function App() {
   return (
     <div className="container">
-      <h1 className="title">
-        Admin <br />
-        <span>Kitchen Sink</span>
-      </h1>
-      <CounterButton />
+      <h1 className="title">Admin App</h1>
       <p className="description">
-        Built With{" "}
-        <Link href="https://turborepo.com" newTab>
-          Turborepo
+        This is the admin application for Arena Web. Go to{" "}
+        <Link href="http://localhost:3002" className="link">
+          Arena Web
         </Link>
-        {" & "}
-        <Link href="https://vitejs.dev/" newTab>
-          Vite
-        </Link>
+        to see the main application.
       </p>
     </div>
   );
