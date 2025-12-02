@@ -1,5 +1,5 @@
 {
-  "name": "kitchen-sink",
+  "name": "dips-interview-case",
   "private": true,
   "scripts": {
     "build": "turbo run build",

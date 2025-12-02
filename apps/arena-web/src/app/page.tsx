@@ -3,24 +3,70 @@
 import { log } from "@repo/logger";
 import { useEffect, useState } from "react";
 
+const styles = {
+  container: { padding: "20px", maxWidth: "1400px" },
+  error: { color: "red", padding: "10px", background: "#fee" },
+  layout: { display: "flex", gap: "20px", marginTop: "20px" },
+  panel: { border: "1px solid #ccc", padding: "15px" },
+  input: {
+    width: "100%",
+    padding: "8px",
+    marginBottom: "10px",
+    border: "1px solid #ddd",
+  },
+  list: { maxHeight: "600px", overflow: "auto" },
+  patientCard: (selected: boolean) => ({
+    padding: "10px",
+    margin: "5px 0",
+    background: selected ? "#e7f3ff" : "#f9f9f9",
+    cursor: "pointer",
+    border: "1px solid #ddd",
+  }),
+  deleteBtn: {
+    marginTop: "5px",
+    padding: "4px 8px",
+    background: "#dc3545",
+    color: "white",
+    border: "none",
+    fontSize: "12px",
+    cursor: "pointer",
+  },
+  apptCard: {
+    padding: "10px",
+    margin: "5px 0",
+    background: "#f0f0f0",
+    border: "1px solid #ddd",
+  },
+  cancelBtn: {
+    marginLeft: "10px",
+    padding: "4px 8px",
+    background: "#ffc107",
+    border: "none",
+    cursor: "pointer",
+  },
+  placeholder: { textAlign: "center" as const, padding: "40px", color: "#999" },
+};
+
 export default function Page() {
   log("Arena Web - Patient Portal Page Loaded");
 
   const [patients, setPatients] = useState<any[]>([]);
   const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
-  const [prescriptions, setPrescriptions] = useState<any[]>([]);
-  const [vitals, setVitals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [newPatientName, setNewPatientName] = useState("");
-  const [newPatientEmail, setNewPatientEmail] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [localCache, setLocalCache] = useState<any>({});
 
   useEffect(() => {
     fetchPatients();
-  }, []);
+    const interval = setInterval(() => {
+      if (selectedPatient) {
+        fetchAppointments(selectedPatient.id);
+      }
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [selectedPatient]);
 
   const fetchPatients = async () => {
     try {
@@ -36,82 +82,41 @@ export default function Page() {
   };
 
   const handleSelectPatient = async (patientId: string) => {
+    if (localCache[patientId]) {
+      setSelectedPatient(localCache[patientId].patient);
+      setAppointments(localCache[patientId].appointments);
+      return;
+    }
+
     try {
-      const [patientRes, apptRes, rxRes, vitalsRes] = await Promise.all([
+      const [patientRes, apptRes] = await Promise.all([
         fetch(`http://localhost:5001/api/patients/${patientId}`),
         fetch(`http://localhost:5001/api/appointments?patientId=${patientId}`),
-        fetch(`http://localhost:5001/api/patients/${patientId}/prescriptions`),
-        fetch(`http://localhost:5001/api/patients/${patientId}/vitals?limit=5`),
       ]);
 
       const patient = await patientRes.json();
       const apptData = await apptRes.json();
-      const rxData = await rxRes.json();
-      const vitalsData = await vitalsRes.json();
 
       setSelectedPatient(patient);
       setAppointments(apptData.appointments);
-      setPrescriptions(rxData.prescriptions);
-      setVitals(vitalsData.vitals);
+
+      setLocalCache({
+        ...localCache,
+        [patientId]: { patient, appointments: apptData.appointments },
+      });
     } catch (err) {
       alert("Error loading patient details");
     }
   };
 
-  const addPatient = async () => {
-    if (!newPatientName || !newPatientEmail) {
-      alert("Name and email required!");
-      return;
-    }
-
-    if (newPatientEmail.indexOf("@") === -1) {
-      alert("Invalid email");
-      return;
-    }
-
-    const names = newPatientName.split(" ");
-    const payload = {
-      firstName: names[0],
-      lastName: names.slice(1).join(" ") || "Unknown",
-      email: newPatientEmail,
-      dateOfBirth: "1990-01-01",
-      gender: "other",
-      phone: "+1-555-0000",
-      address: {
-        street: "123 Main St",
-        city: "City",
-        state: "ST",
-        zipCode: "12345",
-        country: "USA",
-      },
-      emergencyContact: {
-        name: "Emergency Contact",
-        relationship: "Friend",
-        phone: "+1-555-0001",
-      },
-    };
-
-    try {
-      const res = await fetch("http://localhost:5001/api/patients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        setNewPatientName("");
-        setNewPatientEmail("");
-        setShowAddForm(false);
-        fetchPatients(); // Refetch everything
-      } else {
-        alert("Failed to add patient");
-      }
-    } catch (err) {
-      alert("Network error");
-    }
+  const fetchAppointments = async (patientId: string) => {
+    const res = await fetch(
+      `http://localhost:5001/api/appointments?patientId=${patientId}`
+    );
+    const data = await res.json();
+    setAppointments(data.appointments);
   };
 
-  // Delete patient - no confirmation, direct manipulation
   const deletePatient = async (id: string) => {
     try {
       await fetch(`http://localhost:5001/api/patients/${id}`, {
@@ -121,8 +126,6 @@ export default function Page() {
       if (selectedPatient?.id === id) {
         setSelectedPatient(null);
         setAppointments([]);
-        setPrescriptions([]);
-        setVitals([]);
       }
     } catch (err) {
       console.log("Delete failed", err);
@@ -153,115 +156,36 @@ export default function Page() {
       p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const statusColor = (status: string) =>
+    status === "cancelled"
+      ? "red"
+      : status === "completed"
+        ? "green"
+        : "orange";
+
   return (
-    <div className="container" style={{ padding: "20px", maxWidth: "1400px" }}>
-      <h1 className="title">
-        Patient Portal <br />
-        <span>EHR System</span>
-      </h1>
+    <div style={styles.container}>
+      <h1>Patient Portal</h1>
+      {error && <div style={styles.error}>{error}</div>}
 
-      {error && (
-        <div style={{ color: "red", padding: "10px", background: "#fee" }}>
-          {error}
-        </div>
-      )}
-
-      <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
-        {/* Patient List */}
-        <div style={{ flex: 1, border: "1px solid #ccc", padding: "15px" }}>
+      <div style={styles.layout}>
+        <div style={{ ...styles.panel, flex: 1 }}>
           <h2>Patients</h2>
-
           <input
             type="text"
             placeholder="Search patients..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: "100%",
-              padding: "8px",
-              marginBottom: "10px",
-              border: "1px solid #ddd",
-            }}
+            style={styles.input}
           />
-
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            style={{
-              padding: "8px 16px",
-              marginBottom: "10px",
-              background: "#007bff",
-              color: "white",
-              border: "none",
-              cursor: "pointer",
-            }}
-          >
-            {showAddForm ? "Cancel" : "Add Patient"}
-          </button>
-
-          {showAddForm && (
-            <div
-              style={{
-                border: "1px solid #ddd",
-                padding: "10px",
-                marginBottom: "10px",
-              }}
-            >
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={newPatientName}
-                onChange={(e) => setNewPatientName(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  marginBottom: "8px",
-                  border: "1px solid #ddd",
-                }}
-              />
-              <input
-                type="email"
-                placeholder="Email"
-                value={newPatientEmail}
-                onChange={(e) => setNewPatientEmail(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px",
-                  marginBottom: "8px",
-                  border: "1px solid #ddd",
-                }}
-              />
-              <button
-                onClick={addPatient}
-                style={{
-                  padding: "8px 16px",
-                  background: "#28a745",
-                  color: "white",
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              >
-                Submit
-              </button>
-            </div>
-          )}
-
           {loading ? (
             <p>Loading patients...</p>
           ) : (
-            <div style={{ maxHeight: "600px", overflow: "auto" }}>
+            <div style={styles.list}>
               {filteredPatients.map((patient) => (
                 <div
                   key={patient.id}
-                  style={{
-                    padding: "10px",
-                    margin: "5px 0",
-                    background:
-                      selectedPatient?.id === patient.id
-                        ? "#e7f3ff"
-                        : "#f9f9f9",
-                    cursor: "pointer",
-                    border: "1px solid #ddd",
-                  }}
+                  style={styles.patientCard(selectedPatient?.id === patient.id)}
                   onClick={() => handleSelectPatient(patient.id)}
                 >
                   <strong>
@@ -276,15 +200,7 @@ export default function Page() {
                       e.stopPropagation();
                       deletePatient(patient.id);
                     }}
-                    style={{
-                      marginTop: "5px",
-                      padding: "4px 8px",
-                      background: "#dc3545",
-                      color: "white",
-                      border: "none",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                    }}
+                    style={styles.deleteBtn}
                   >
                     Delete
                   </button>
@@ -294,8 +210,7 @@ export default function Page() {
           )}
         </div>
 
-        {/* Patient Details */}
-        <div style={{ flex: 2, border: "1px solid #ccc", padding: "15px" }}>
+        <div style={{ ...styles.panel, flex: 2 }}>
           {selectedPatient ? (
             <div>
               <h2>
@@ -323,56 +238,26 @@ export default function Page() {
                   ? selectedPatient.allergies.join(", ")
                   : "None"}
               </p>
-              <p>
-                <strong>Chronic Conditions:</strong>{" "}
-                {selectedPatient.chronicConditions.length > 0
-                  ? selectedPatient.chronicConditions.join(", ")
-                  : "None"}
-              </p>
 
-              {/* Appointments */}
               <h3 style={{ marginTop: "20px" }}>Appointments</h3>
               {appointments.length === 0 ? (
                 <p>No appointments</p>
               ) : (
                 <div>
                   {appointments.map((appt) => (
-                    <div
-                      key={appt.id}
-                      style={{
-                        padding: "10px",
-                        margin: "5px 0",
-                        background: "#f0f0f0",
-                        border: "1px solid #ddd",
-                      }}
-                    >
+                    <div key={appt.id} style={styles.apptCard}>
                       <strong>{appt.providerName}</strong> - {appt.department}
                       <br />
                       {new Date(appt.date).toLocaleString()}
                       <br />
                       Type: {appt.type} | Status:{" "}
-                      <span
-                        style={{
-                          color:
-                            appt.status === "cancelled"
-                              ? "red"
-                              : appt.status === "completed"
-                                ? "green"
-                                : "orange",
-                        }}
-                      >
+                      <span style={{ color: statusColor(appt.status) }}>
                         {appt.status}
                       </span>
                       {appt.status !== "cancelled" && (
                         <button
                           onClick={() => cancelAppointment(appt.id)}
-                          style={{
-                            marginLeft: "10px",
-                            padding: "4px 8px",
-                            background: "#ffc107",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
+                          style={styles.cancelBtn}
                         >
                           Cancel
                         </button>
@@ -381,98 +266,9 @@ export default function Page() {
                   ))}
                 </div>
               )}
-
-              {/* Prescriptions */}
-              <h3 style={{ marginTop: "20px" }}>Prescriptions</h3>
-              {prescriptions.length === 0 ? (
-                <p>No prescriptions</p>
-              ) : (
-                <div>
-                  {prescriptions.map((rx) => (
-                    <div
-                      key={rx.id}
-                      style={{
-                        padding: "10px",
-                        margin: "5px 0",
-                        background: "#f0f0f0",
-                        border: "1px solid #ddd",
-                      }}
-                    >
-                      <strong>{rx.medication}</strong> - {rx.dosage}
-                      <br />
-                      {rx.frequency}
-                      <br />
-                      Prescribed by: {rx.prescribedBy}
-                      <br />
-                      Refills remaining: {rx.refillsRemaining}
-                      <br />
-                      Status: {rx.status}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Vitals */}
-              <h3 style={{ marginTop: "20px" }}>Recent Vitals</h3>
-              {vitals.length === 0 ? (
-                <p>No vitals recorded</p>
-              ) : (
-                <div>
-                  {vitals.map((vital) => (
-                    <div
-                      key={vital.id}
-                      style={{
-                        padding: "10px",
-                        margin: "5px 0",
-                        background: "#f0f0f0",
-                        border: "1px solid #ddd",
-                      }}
-                    >
-                      <strong>
-                        {new Date(vital.recordedDate).toLocaleDateString()}
-                      </strong>{" "}
-                      - Recorded by {vital.recordedBy}
-                      <br />
-                      {vital.bloodPressure && (
-                        <>
-                          BP: {vital.bloodPressure.systolic}/
-                          {vital.bloodPressure.diastolic}
-                          <br />
-                        </>
-                      )}
-                      {vital.heartRate && (
-                        <>
-                          Heart Rate: {vital.heartRate} bpm
-                          <br />
-                        </>
-                      )}
-                      {vital.temperature && (
-                        <>
-                          Temp: {vital.temperature}°F
-                          <br />
-                        </>
-                      )}
-                      {vital.oxygenSaturation && (
-                        <>
-                          O2 Sat: {vital.oxygenSaturation}%<br />
-                        </>
-                      )}
-                      {vital.weight && (
-                        <>
-                          Weight: {vital.weight} lbs
-                          <br />
-                        </>
-                      )}
-                      {vital.bmi && <>BMI: {vital.bmi}</>}
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           ) : (
-            <div
-              style={{ textAlign: "center", padding: "40px", color: "#999" }}
-            >
+            <div style={styles.placeholder}>
               <p>Select a patient to view details</p>
             </div>
           )}
