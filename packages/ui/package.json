@@ -28,6 +28,16 @@
         "types": "./dist/cjs/link.d.ts",
         "default": "./dist/cjs/link.js"
       }
+    },
+    "./card": {
+      "import": {
+        "types": "./dist/es/card.d.mts",
+        "default": "./dist/es/card.mjs"
+      },
+      "require": {
+        "types": "./dist/cjs/card.d.ts",
+        "default": "./dist/cjs/card.js"
+      }
     }
   },
   "scripts": {

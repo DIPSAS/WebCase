@@ -1,6 +1,7 @@
 "use client";
 
 import { log } from "@repo/logger";
+import { Card } from "@repo/ui/card";
 import { useEffect, useState } from "react";
 
 // TODO: Remove this before production
@@ -258,47 +259,48 @@ export default function Page() {
                   : "None"}
               </p>
 
-              <h3 style={{ marginTop: "20px" }}>Appointments</h3>
-              {appointments.length === 0 ? (
-                <p>No appointments</p>
-              ) : (
-                <div>
-                  {appointments.map((appt, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        padding: "10px",
-                        margin: "5px 0",
-                        background: "#f0f0f0",
-                        border: "1px solid #ddd",
-                      }}
-                    >
-                      <strong>{appt.providerName}</strong> - {appt.department}
-                      <br />
-                      {new Date(appt.date).toLocaleString()}
-                      <br />
-                      Type: {appt.type} | Status:{" "}
-                      <span style={{ color: getStatusColor(appt.status) }}>
-                        {appt.status}
-                      </span>
-                      {appt.status !== "cancelled" && (
-                        <button
-                          onClick={() => cancelAppointment(appt.id)}
-                          style={{
-                            marginLeft: "10px",
-                            padding: "4px 8px",
-                            background: "#ffc107",
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
+              <Card title="Appointments" collapsible defaultCollapsed={false}>
+                {appointments.length === 0 ? (
+                  <p>No appointments</p>
+                ) : (
+                  <div>
+                    {appointments.map((appt, i) => (
+                      <div
+                        key={i}
+                        style={{
+                          padding: "10px",
+                          margin: "5px 0",
+                          background: "#f0f0f0",
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        <strong>{appt.providerName}</strong> - {appt.department}
+                        <br />
+                        {new Date(appt.date).toLocaleString()}
+                        <br />
+                        Type: {appt.type} | Status:{" "}
+                        <span style={{ color: getStatusColor(appt.status) }}>
+                          {appt.status}
+                        </span>
+                        {appt.status !== "cancelled" && (
+                          <button
+                            onClick={() => cancelAppointment(appt.id)}
+                            style={{
+                              marginLeft: "10px",
+                              padding: "4px 8px",
+                              background: "#ffc107",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
             </div>
           ) : (
             <div style={{ textAlign: "center", padding: "40px", color: "#999" }}>
