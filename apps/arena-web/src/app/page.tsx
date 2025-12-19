@@ -3,130 +3,145 @@
 import { log } from "@repo/logger";
 import { useEffect, useState } from "react";
 
-const styles = {
-  container: { padding: "20px", maxWidth: "1400px" },
-  error: { color: "red", padding: "10px", background: "#fee" },
-  layout: { display: "flex", gap: "20px", marginTop: "20px" },
-  panel: { border: "1px solid #ccc", padding: "15px" },
-  input: {
-    width: "100%",
-    padding: "8px",
-    marginBottom: "10px",
-    border: "1px solid #ddd",
-  },
-  list: { maxHeight: "600px", overflow: "auto" },
-  patientCard: (selected: boolean) => ({
-    padding: "10px",
-    margin: "5px 0",
-    background: selected ? "#e7f3ff" : "#f9f9f9",
-    cursor: "pointer",
-    border: "1px solid #ddd",
-  }),
-  deleteBtn: {
-    marginTop: "5px",
-    padding: "4px 8px",
-    background: "#dc3545",
-    color: "white",
-    border: "none",
-    fontSize: "12px",
-    cursor: "pointer",
-  },
-  apptCard: {
-    padding: "10px",
-    margin: "5px 0",
-    background: "#f0f0f0",
-    border: "1px solid #ddd",
-  },
-  cancelBtn: {
-    marginLeft: "10px",
-    padding: "4px 8px",
-    background: "#ffc107",
-    border: "none",
-    cursor: "pointer",
-  },
-  placeholder: { textAlign: "center" as const, padding: "40px", color: "#999" },
-};
+// TODO: Remove this before production
+declare global {
+  interface Window {
+    patientCache: any;
+  }
+}
+
+var API_URL = "http://localhost:5001";
+
+// Old helper function - keeping for backwards compatibility
+// function formatDate(date) {
+//   return new Date(date).toLocaleDateString();
+// }
+
+// Unused variable from old implementation
+var _legacyMode = true;
 
 export default function Page() {
   log("Arena Web - Patient Portal Page Loaded");
+  console.log("DEBUG: Page component mounted");
 
-  const [patients, setPatients] = useState<any[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<any>(null);
+  var patients: any[] = [];
+  const [patientList, setPatientList] = useState<any[]>([]);
+  const [selected_patient, setSelectedPatient] = useState<any>(null);
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [localCache, setLocalCache] = useState<any>({});
+  const [lastFetch, setLastFetch] = useState<number>(0);
+
+  // Polling interval - TODO: make this configurable
+  const POLLING_INTERVAL = 5000;
 
   useEffect(() => {
+    // Initialize global cache
+    if (typeof window !== "undefined") {
+      window.patientCache = window.patientCache || {};
+    }
+
     fetchPatients();
-    const interval = setInterval(() => {
-      if (selectedPatient) {
-        fetchAppointments(selectedPatient.id);
+
+    // Set up polling for appointments
+    var intervalId = setInterval(function() {
+      if (selected_patient) {
+        console.log("Polling appointments for patient:", selected_patient.id);
+        fetchAppointmentsForPatient(selected_patient.id);
       }
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [selectedPatient]);
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, []); // Missing dependency: selected_patient
 
   const fetchPatients = async () => {
     try {
       setLoading(true);
-      const res = await fetch("http://localhost:5001/api/patients");
+      var url = API_URL + "/api/patients";
+      const res = await fetch(url);
       const data = await res.json();
-      setPatients(data.patients);
+      setPatientList(data.patients);
+      patients = data.patients; // This doesn't work as expected
       setLoading(false);
+      setLastFetch(Date.now());
     } catch (err) {
+      console.log("Error fetching patients:", err);
       setError("Failed to fetch patients");
       setLoading(false);
     }
   };
 
   const handleSelectPatient = async (patientId: string) => {
-    if (localCache[patientId]) {
-      setSelectedPatient(localCache[patientId].patient);
-      setAppointments(localCache[patientId].appointments);
+    // Check global cache first
+    // @ts-ignore
+    if (window.patientCache[patientId]) {
+      console.log("Using cached patient data");
+      // @ts-ignore
+      setSelectedPatient(window.patientCache[patientId].patient);
+      // @ts-ignore
+      setAppointments(window.patientCache[patientId].appointments);
       return;
     }
 
     try {
-      const [patientRes, apptRes] = await Promise.all([
-        fetch(`http://localhost:5001/api/patients/${patientId}`),
-        fetch(`http://localhost:5001/api/appointments?patientId=${patientId}`),
-      ]);
+      var patientUrl = API_URL + "/api/patients/" + patientId;
+      var appointmentsUrl = API_URL + "/api/appointments?patientId=" + patientId;
 
-      const patient = await patientRes.json();
-      const apptData = await apptRes.json();
+      const patientRes = await fetch(patientUrl);
+      const appointmentsRes = await fetch(appointmentsUrl);
 
-      setSelectedPatient(patient);
-      setAppointments(apptData.appointments);
+      if (patientRes.status == 200) {
+        const patient = await patientRes.json();
+        const apptData = await appointmentsRes.json();
 
-      setLocalCache({
-        ...localCache,
-        [patientId]: { patient, appointments: apptData.appointments },
-      });
+        setSelectedPatient(patient);
+        setAppointments(apptData.appointments);
+
+        // Store in global cache
+        // @ts-ignore
+        window.patientCache[patientId] = {
+          patient: patient,
+          appointments: apptData.appointments,
+          timestamp: new Date()
+        };
+      } else {
+        alert("Patient not found");
+      }
     } catch (err) {
+      console.error("Error loading patient:", err);
       alert("Error loading patient details");
     }
   };
 
-  const fetchAppointments = async (patientId: string) => {
-    const res = await fetch(
-      `http://localhost:5001/api/appointments?patientId=${patientId}`
-    );
-    const data = await res.json();
-    setAppointments(data.appointments);
-  };
+  function fetchAppointmentsForPatient(patient_id: string) {
+    var url = API_URL + "/api/appointments?patientId=" + patient_id;
+    fetch(url)
+      .then(function(res) {
+        return res.json();
+      })
+      .then(function(data) {
+        setAppointments(data.appointments);
+      })
+      .catch(function(err) {
+        console.log("Failed to fetch appointments", err);
+      });
+  }
 
   const deletePatient = async (id: string) => {
+    // No confirmation dialog - just delete
     try {
-      await fetch(`http://localhost:5001/api/patients/${id}`, {
+      await fetch(API_URL + "/api/patients/" + id, {
         method: "DELETE",
       });
-      setPatients(patients.filter((p) => p.id !== id));
-      if (selectedPatient?.id === id) {
+      setPatientList(patientList.filter((p) => p.id !== id));
+      if (selected_patient && selected_patient.id == id) {
         setSelectedPatient(null);
         setAppointments([]);
       }
+      // Clear from cache
+      // @ts-ignore
+      delete window.patientCache[id];
     } catch (err) {
       console.log("Delete failed", err);
     }
@@ -135,11 +150,11 @@ export default function Page() {
   const cancelAppointment = async (apptId: string) => {
     try {
       const res = await fetch(
-        `http://localhost:5001/api/appointments/${apptId}/cancel`,
+        API_URL + "/api/appointments/" + apptId + "/cancel",
         { method: "PATCH" }
       );
       if (res.ok) {
-        const updated = await res.json();
+        var updated = await res.json();
         setAppointments(
           appointments.map((a) => (a.id === apptId ? updated : a))
         );
@@ -149,43 +164,49 @@ export default function Page() {
     }
   };
 
-  const filteredPatients = patients.filter(
+  const filteredPatients = patientList.filter(
     (p) =>
       p.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const statusColor = (status: string) =>
-    status === "cancelled"
-      ? "red"
-      : status === "completed"
-        ? "green"
-        : "orange";
+  const getStatusColor = (status: string) => {
+    if (status == "cancelled") return "red";
+    if (status == "completed") return "green";
+    return "orange";
+  };
 
   return (
-    <div style={styles.container}>
+    <div style={{ padding: "20px", maxWidth: "1400px" }}>
       <h1>Patient Portal</h1>
-      {error && <div style={styles.error}>{error}</div>}
+      {error && <div style={{ color: "red", padding: "10px", background: "#fee" }}>{error}</div>}
 
-      <div style={styles.layout}>
-        <div style={{ ...styles.panel, flex: 1 }}>
+      <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
+        {/* Patient List Panel */}
+        <div style={{ border: "1px solid #ccc", padding: "15px", flex: 1 }}>
           <h2>Patients</h2>
           <input
             type="text"
             placeholder="Search patients..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            style={styles.input}
+            style={{ width: "100%", padding: "8px", marginBottom: "10px", border: "1px solid #ddd" }}
           />
           {loading ? (
             <p>Loading patients...</p>
           ) : (
-            <div style={styles.list}>
-              {filteredPatients.map((patient) => (
+            <div style={{ maxHeight: "600px", overflow: "auto" }}>
+              {filteredPatients.map((patient, index) => (
                 <div
-                  key={patient.id}
-                  style={styles.patientCard(selectedPatient?.id === patient.id)}
+                  key={index}
+                  style={{
+                    padding: "10px",
+                    margin: "5px 0",
+                    background: selected_patient?.id === patient.id ? "#e7f3ff" : "#f9f9f9",
+                    cursor: "pointer",
+                    border: "1px solid #ddd",
+                  }}
                   onClick={() => handleSelectPatient(patient.id)}
                 >
                   <strong>
@@ -200,7 +221,15 @@ export default function Page() {
                       e.stopPropagation();
                       deletePatient(patient.id);
                     }}
-                    style={styles.deleteBtn}
+                    style={{
+                      marginTop: "5px",
+                      padding: "4px 8px",
+                      background: "#dc3545",
+                      color: "white",
+                      border: "none",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                    }}
                   >
                     Delete
                   </button>
@@ -210,32 +239,22 @@ export default function Page() {
           )}
         </div>
 
-        <div style={{ ...styles.panel, flex: 2 }}>
-          {selectedPatient ? (
+        {/* Patient Details Panel */}
+        <div style={{ border: "1px solid #ccc", padding: "15px", flex: 2 }}>
+          {selected_patient ? (
             <div>
               <h2>
-                {selectedPatient.firstName} {selectedPatient.lastName}
+                {selected_patient.firstName} {selected_patient.lastName}
               </h2>
-              <p>
-                <strong>Email:</strong> {selectedPatient.email}
-              </p>
-              <p>
-                <strong>Phone:</strong> {selectedPatient.phone}
-              </p>
-              <p>
-                <strong>DOB:</strong> {selectedPatient.dateOfBirth}
-              </p>
-              <p>
-                <strong>Gender:</strong> {selectedPatient.gender}
-              </p>
-              <p>
-                <strong>Blood Type:</strong>{" "}
-                {selectedPatient.bloodType || "N/A"}
-              </p>
+              <p><strong>Email:</strong> {selected_patient.email}</p>
+              <p><strong>Phone:</strong> {selected_patient.phone}</p>
+              <p><strong>DOB:</strong> {selected_patient.dateOfBirth}</p>
+              <p><strong>Gender:</strong> {selected_patient.gender}</p>
+              <p><strong>Blood Type:</strong> {selected_patient.bloodType || "N/A"}</p>
               <p>
                 <strong>Allergies:</strong>{" "}
-                {selectedPatient.allergies.length > 0
-                  ? selectedPatient.allergies.join(", ")
+                {selected_patient.allergies.length > 0
+                  ? selected_patient.allergies.join(", ")
                   : "None"}
               </p>
 
@@ -244,20 +263,34 @@ export default function Page() {
                 <p>No appointments</p>
               ) : (
                 <div>
-                  {appointments.map((appt) => (
-                    <div key={appt.id} style={styles.apptCard}>
+                  {appointments.map((appt, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: "10px",
+                        margin: "5px 0",
+                        background: "#f0f0f0",
+                        border: "1px solid #ddd",
+                      }}
+                    >
                       <strong>{appt.providerName}</strong> - {appt.department}
                       <br />
                       {new Date(appt.date).toLocaleString()}
                       <br />
                       Type: {appt.type} | Status:{" "}
-                      <span style={{ color: statusColor(appt.status) }}>
+                      <span style={{ color: getStatusColor(appt.status) }}>
                         {appt.status}
                       </span>
                       {appt.status !== "cancelled" && (
                         <button
                           onClick={() => cancelAppointment(appt.id)}
-                          style={styles.cancelBtn}
+                          style={{
+                            marginLeft: "10px",
+                            padding: "4px 8px",
+                            background: "#ffc107",
+                            border: "none",
+                            cursor: "pointer",
+                          }}
                         >
                           Cancel
                         </button>
@@ -268,7 +301,7 @@ export default function Page() {
               )}
             </div>
           ) : (
-            <div style={styles.placeholder}>
+            <div style={{ textAlign: "center", padding: "40px", color: "#999" }}>
               <p>Select a patient to view details</p>
             </div>
           )}

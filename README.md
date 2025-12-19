@@ -8,9 +8,8 @@
 Dette monorepoet bruker:
 
 - **Turborepo** + **pnpm workspaces** for monorepo-håndtering
-- **React** (v18 og v19) for UI-komponenter
+- **React** for UI-komponenter
 - **Next.js** for arena-web
-- **Vite** for admin-applikasjonen
 - **Express** for API
 - **TypeScript** på tvers av alle pakker
 - **Jest** for testing
@@ -26,15 +25,14 @@ Dette monorepoet bruker:
 2. Start utviklingsservere:
 
    ```bash
-   # Start alle applikasjoner i utviklingsmodus
    pnpm dev
    ```
 
 ## Oppgave
 
-Undersøk API'et og frontend-applikasjonene i dette monorepoet. Gjør nødvendige endringer for å fjerne legacy-kode og forbedre brukeropplevelsen i admin-applikasjonen og arena-web applikasjonen.
+Undersøk API'et og frontend-applikasjonen i dette monorepoet. Gjør nødvendige endringer for å fjerne legacy-kode og forbedre brukeropplevelsen i arena-web applikasjonen.
 
-**Merk**: Fokuset er primært på **arena-web** og den omliggende strukturen. API'et har flere endepunkter enn nødvendig for fleksibilitet - det er ikke forventet at du bruker alle. Velg det som gir mening for løsningen din.
+**Merk**: Fokuset er primært på **arena-web** og den omliggende strukturen. API'et er forenklet og inneholder kun pasient- og timebestilling-endepunkter.
 
 ### Rammer
 
@@ -58,16 +56,19 @@ Undersøk API'et og frontend-applikasjonene i dette monorepoet. Gjør nødvendig
 
 ### Eksempler på tema som er verdt å tenke rundt
 
-#### Pakkeversjoner
+#### Kodekvalitet
 
-- Hvordan håndteres pakkeversjoner i dette monorepoet?
-- Har bruken av både React 18 og React 19 betydning for systemet?
+- Er det noen åpenbare problemer med koden?
+- Hvordan håndteres tilstand og data-fetching?
+- Er det noen anti-patterns eller legacy-mønstre?
+
+#### Konfigurasjon
+
+- Hvordan er prosjektet konfigurert?
+- Er alle konfigurasjonsfilene nødvendige?
+- Hvordan håndteres miljøvariabler?
 
 #### Bygging av pakker
 
-- Hva er fordeler og ulemper ved at alle pakker må bygges?
-- Hvordan skalerer denne tilnærmingen når antall pakker øker?
-
-#### Deling av konfigurasjon
-
-- Hvordan bør ESLint, Prettier, Babel og Webpack-konfigurasjoner deles på tvers av pakkene?
+- Hva er fordeler og ulemper ved den valgte byggeprosessen?
+- Hvordan deles konfigurasjon på tvers av pakkene?
